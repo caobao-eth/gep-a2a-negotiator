@@ -6,6 +6,8 @@ from typing import Any
 import os
 import yaml
 
+from .ai import AISettings
+
 
 @dataclass(frozen=True)
 class BotConfig:
@@ -18,6 +20,7 @@ class BotConfig:
     dry_run: bool = False
     max_messages_per_run: int | None = None
     startup_message: bool = True
+    ai: AISettings = AISettings()
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:
@@ -47,20 +50,29 @@ def load_config(path: str | Path) -> BotConfig:
     if not messages_file.is_absolute():
         messages_file = config_path.parent / messages_file
 
+    ai_data = data.get("ai") or {}
+    if not isinstance(ai_data, dict):
+        raise ValueError("ai config must be a YAML object")
+
+    delete_after = data.get("delete_after_seconds")
+    max_messages = data.get("max_messages_per_run")
+
     return BotConfig(
         token=str(token),
         channel_id=int(channel_id),
         messages_file=messages_file,
         send_interval_seconds=int(data.get("send_interval_seconds", 60)),
-        delete_after_seconds=(
-            None if data.get("delete_after_seconds") in (None, "", False)
-            else int(data.get("delete_after_seconds"))
-        ),
+        delete_after_seconds=None if delete_after in (None, "", False) else int(delete_after),
         loop_messages=bool(data.get("loop_messages", True)),
         dry_run=bool(data.get("dry_run", False)),
-        max_messages_per_run=(
-            None if data.get("max_messages_per_run") in (None, "", 0)
-            else int(data.get("max_messages_per_run"))
-        ),
+        max_messages_per_run=None if max_messages in (None, "", 0) else int(max_messages),
         startup_message=bool(data.get("startup_message", True)),
+        ai=AISettings(
+            enabled=bool(ai_data.get("enabled", False)),
+            model=str(ai_data.get("model", "gpt-4o-mini")),
+            system_prompt=str(ai_data.get("system_prompt", AISettings().system_prompt)),
+            max_output_tokens=int(ai_data.get("max_output_tokens", 350)),
+            trigger_prefix=str(ai_data.get("trigger_prefix", "!ai")),
+            reply_when_mentioned=bool(ai_data.get("reply_when_mentioned", True)),
+        ),
     )

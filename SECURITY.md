@@ -12,7 +12,8 @@ Do not publish active bot tokens, server IDs, or private channel data in public 
 
 ## Secret handling
 
-- Store Discord bot tokens in environment variables.
+- Store Discord bot tokens and OpenAI API keys in environment variables.
 - Do not commit `.env` or real `config.yml` files.
-- Rotate a token immediately if it is exposed.
-- Grant the bot only the permissions it needs.
+- Rotate a token/key immediately if it is exposed.
+- Grant the Discord bot only the permissions it needs.
+- Use low default AI output limits to avoid runaway cost.

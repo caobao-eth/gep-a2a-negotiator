@@ -6,6 +6,7 @@ from collections.abc import Sequence
 
 import discord
 
+from .ai import chunk_discord_message, generate_ai_reply, should_ai_reply
 from .config import BotConfig
 from .messages import load_messages
 
@@ -15,6 +16,8 @@ logger = logging.getLogger(__name__)
 class AutoMessageBot(discord.Client):
     def __init__(self, config: BotConfig):
         intents = discord.Intents.default()
+        if config.ai.enabled:
+            intents.message_content = True
         super().__init__(intents=intents)
         self.config = config
         self.messages: Sequence[str] = load_messages(config.messages_file)
@@ -30,6 +33,25 @@ class AutoMessageBot(discord.Client):
                 self.config.dry_run,
             )
         self.loop.create_task(self._message_loop())
+
+    async def on_message(self, message: discord.Message) -> None:
+        if not self.config.ai.enabled or message.author.bot:
+            return
+
+        bot_user_id = self.user.id if self.user else None
+        should_reply, prompt = should_ai_reply(message.content, bot_user_id=bot_user_id, settings=self.config.ai)
+        if not should_reply:
+            return
+
+        async with message.channel.typing():
+            try:
+                reply = await asyncio.to_thread(generate_ai_reply, prompt, self.config.ai)
+            except Exception as exc:  # pragma: no cover - protects live bot loop
+                logger.exception("AI reply failed")
+                reply = f"AI reply failed: `{exc}`"
+
+        for chunk in chunk_discord_message(reply):
+            await message.reply(chunk, mention_author=False)
 
     async def _message_loop(self) -> None:
         await self.wait_until_ready()

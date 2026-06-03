@@ -21,3 +21,15 @@ dry_run: false
 # Optional safety cap. Set null for unlimited loop.
 max_messages_per_run: null
 startup_message: true
+
+# Optional AI chat assistant. Requires `pip install -e .[ai]` and OPENAI_API_KEY.
+ai:
+  enabled: false
+  model: "gpt-4o-mini"
+  trigger_prefix: "!ai"
+  reply_when_mentioned: true
+  max_output_tokens: 350
+  system_prompt: >
+    You are a helpful Discord community assistant. Answer concisely,
+    avoid spam, and help moderators and members understand schedules,
+    announcements, and community information.
