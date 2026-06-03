@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "auto-message-discord"
+version = "0.2.0"
+description = "A safe, configurable Discord bot for scheduled channel messages."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Auto Message Discord contributors"}]
+dependencies = [
+  "discord.py>=2.3,<3",
+  "PyYAML>=6,<7"
+]
+
+[project.scripts]
+auto-message-discord = "auto_message_discord.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

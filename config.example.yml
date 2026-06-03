@@ -1,0 +1,23 @@
+# Copy this file to config.yml and fill in your Discord channel ID.
+# Keep the bot token in DISCORD_BOT_TOKEN instead of committing it here.
+
+token: "${DISCORD_BOT_TOKEN}"
+channel_id: "123456789012345678"
+messages_file: "messages.txt"
+
+# Delay between messages. Keep this respectful to avoid spammy behavior.
+send_interval_seconds: 60
+
+# Set to a number if you want the bot to delete each message after N seconds.
+# Set to null to keep messages.
+delete_after_seconds: null
+
+# Repeat messages after reaching the end of messages_file.
+loop_messages: true
+
+# Useful for validating config without sending messages.
+dry_run: false
+
+# Optional safety cap. Set null for unlimited loop.
+max_messages_per_run: null
+startup_message: true
