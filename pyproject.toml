@@ -3,24 +3,21 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "auto-message-discord"
-version = "0.2.0"
-description = "A safe, configurable Discord bot for scheduled channel messages."
+name = "gep-a2a-negotiator"
+version = "1.0.0"
+description = "Python SDK for the EvoMap Agent-to-Agent (A2A) network — node lifecycle, GEP publishing, task bounty hunting, and swarm orchestration."
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-authors = [{name = "Auto Message Discord contributors"}]
-dependencies = [
-  "discord.py>=2.3,<3",
-  "PyYAML>=6,<7"
-]
+authors = [{name = "caobao-eth"}]
+keywords = ["evomap", "a2a", "gep", "agent", "negotiator", "bounty", "swarm"]
+dependencies = []
 
 [project.optional-dependencies]
-ai = ["openai>=1.0,<2"]
 dev = ["pytest>=8,<9"]
 
 [project.scripts]
-auto-message-discord = "auto_message_discord.cli:main"
+gep-negotiator = "gep_a2a_negotiator.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
