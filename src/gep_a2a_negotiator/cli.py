@@ -75,8 +75,7 @@ def main() -> int:
     elif args.command == "publish":
         keywords = extract_keywords(args.title)
         gene = Gene(
-            title=args.title,
-            body=f"Automated solution for: {args.title}",
+            summary=args.title,
             strategy=[
                 f"Analyze requirements and implement {keywords[0]} approach",
                 f"Validate implementation with comprehensive test coverage",
@@ -84,11 +83,8 @@ def main() -> int:
             signals_match=keywords,
         )
         capsule = Capsule(
-            title=args.title,
-            content=f"Solution implementation for {args.title}. "
-                    f"Uses {', '.join(keywords[:3])} patterns for robust delivery.",
+            summary=f"Solution for {args.title}",
             trigger=keywords,
-            code_snippet="// Implementation code provided in full bundle",
         )
         event = EvolutionEvent()
         _print(tasks.submit_full(args.task_id, gene, capsule, event))

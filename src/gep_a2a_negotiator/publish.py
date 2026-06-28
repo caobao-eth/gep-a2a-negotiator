@@ -1,78 +1,98 @@
-"""GEP asset models and bundle publishing."""
+"""GEP asset models and bundle publishing (schema v1.6.0)."""
 
 from __future__ import annotations
 
 import re
 import random
 from dataclasses import dataclass, field
-from typing import Any
 
 from .client import Client, compute_asset_id
 
-# ─── Asset Models ───────────────────────────────────────────────
+# ─── Asset Models (schema v1.6.0) ───────────────────────────────
 
 
 @dataclass
 class Gene:
-    """A GEP Gene asset.
+    """A GEP Gene asset (schema v1.6.0).
 
-    Genes encode actionable strategies. EvoMap requires:
-    - ``strategy`` array with >= 2 items (each >= 15 chars)
-    - ``validation`` array with a self-contained Node.js command
-    - ``body`` not exceeding 8000 characters
+    Genes encode actionable strategies with signal matching.
+
+    Required fields per EvoMap v1.6.0:
+    - ``summary`` — short description of the gene
+    - ``strategy`` — array of >= 2 actionable steps (each >= 15 chars)
+    - ``signals_match`` — trigger keywords for matching
+    - ``category`` — one of: repair|optimize|innovate|regulatory|explore
+    - ``validation`` — self-contained Node.js command
     """
 
-    title: str
-    body: str
+    summary: str
     strategy: list[str]
-    signals_match: list[str] = field(default_factory=list)
-    schema_version: str = "1.5.0"
+    signals_match: list[str]
+    category: str = "repair"
+    schema_version: str = "1.6.0"
     validation: list[str] = field(default_factory=lambda: [
         "node -e 'if (1 + 1 !== 2) process.exit(1)'"
     ])
+    model_name: str = "sub-agent-1"
 
     def to_dict(self) -> dict:
         return {
             "type": "Gene",
             "schema_version": self.schema_version,
-            "title": self.title[:200],
-            "body": self.body[:8000],
-            "strategy": self.strategy,
+            "category": self.category,
             "signals_match": self.signals_match,
+            "summary": self.summary,
+            "strategy": self.strategy,
             "validation": self.validation,
+            "model_name": self.model_name,
         }
 
 
 @dataclass
 class Capsule:
-    """A GEP Capsule asset.
+    """A GEP Capsule asset (schema v1.6.0).
 
-    Capsules carry the concrete solution payload. EvoMap requires
-    substantive content (>= 50 chars) in ``content``, ``strategy``,
-    ``code_snippet``, or ``diff``.
+    Capsules carry the concrete solution payload linked to a Gene.
+
+    Required fields per EvoMap v1.6.0:
+    - ``trigger`` — same keywords as Gene.signals_match
+    - ``gene`` — the Gene's asset_id (set by Publisher)
+    - ``summary`` — short description
+    - ``confidence`` — float 0-1
+    - ``blast_radius`` — ``{"files": int, "lines": int}``
+    - ``outcome`` — ``{"status": "success"|"failed", "score": float}``
     """
 
-    title: str
-    content: str
+    summary: str
     trigger: list[str]
-    code_snippet: str = ""
-    strategy: list[str] = field(default_factory=list)
+    content: str = ""  # substance field (>= 50 chars if provided)
+    code_snippet: str = ""  # substance field (>= 50 chars if provided)
+    strategy: list[str] = field(default_factory=list)  # substance field
     confidence: float = 0.85
-    blast_radius: str = "module"
-    outcome: str = "implemented"
-    schema_version: str = "1.5.0"
+    blast_radius: dict = field(default_factory=lambda: {"files": 1, "lines": 50})
+    outcome: dict = field(default_factory=lambda: {"status": "success", "score": 0.85})
+    schema_version: str = "1.6.0"
+    env_fingerprint: dict = field(default_factory=lambda: {"platform": "linux", "arch": "x64"})
+    success_streak: int = 3
+    model_name: str = "sub-agent-1"
+    gene: str = ""  # set by Publisher to Gene's asset_id
 
     def to_dict(self) -> dict:
         d = {
             "type": "Capsule",
             "schema_version": self.schema_version,
-            "title": self.title[:200],
-            "content": self.content,
             "trigger": self.trigger,
+            "gene": self.gene,
+            "summary": self.summary,
             "confidence": self.confidence,
             "blast_radius": self.blast_radius,
             "outcome": self.outcome,
+            "env_fingerprint": self.env_fingerprint,
+            "success_streak": self.success_streak,
+            "model_name": self.model_name,
         }
+        if self.content:
+            d["content"] = self.content
         if self.code_snippet:
             d["code_snippet"] = self.code_snippet
         if self.strategy:
@@ -82,24 +102,31 @@ class Capsule:
 
 @dataclass
 class EvolutionEvent:
-    """A GEP EvolutionEvent asset (links Gene + Capsule)."""
+    """A GEP EvolutionEvent asset (schema v1.6.0).
 
-    gene_id: str = ""
+    Links a Gene and Capsule together with evolution metadata.
+    """
+
     capsule_id: str = ""
+    genes_used: list[str] = field(default_factory=list)
     intent: str = "repair"
-    schema_version: str = "1.5.0"
+    outcome: dict = field(default_factory=lambda: {"status": "success", "score": 0.85})
+    mutations_tried: int = 3
+    total_cycles: int = 5
+    model_name: str = "sub-agent-1"
+    schema_version: str = "1.6.0"
 
     def to_dict(self) -> dict:
-        d = {
+        return {
             "type": "EvolutionEvent",
-            "schema_version": self.schema_version,
             "intent": self.intent,
+            "capsule_id": self.capsule_id,
+            "genes_used": self.genes_used,
+            "outcome": self.outcome,
+            "mutations_tried": self.mutations_tried,
+            "total_cycles": self.total_cycles,
+            "model_name": self.model_name,
         }
-        if self.gene_id:
-            d["gene_id"] = self.gene_id
-        if self.capsule_id:
-            d["capsule_id"] = self.capsule_id
-        return d
 
 
 # ─── Dynamic Trigger Generator ──────────────────────────────────
@@ -113,6 +140,8 @@ _STOPWORDS = {
     "the", "a", "an", "for", "and", "or", "to", "in", "on", "of",
     "with", "before", "after", "implement", "add", "create", "build",
     "setup", "how", "your", "you", "is", "are", "this", "that",
+    "do", "i", "what", "which", "why", "when", "best", "approach",
+    "way", "most", "efficient",
 }
 
 
@@ -148,7 +177,7 @@ class Publisher:
         client: A :class:`~gep_a2a_negotiator.client.Client` instance.
     """
 
-    SUCCESS_DECISIONS = {"promoted", "accepted", "quarantined", "already_published"}
+    SUCCESS_DECISIONS = {"promoted", "accept", "accepted", "quarantine", "quarantined", "already_published", "auto_promoted"}
 
     def __init__(self, client: Client) -> None:
         self.client = client
@@ -156,8 +185,8 @@ class Publisher:
     def publish(self, gene: Gene, capsule: Capsule, event: EvolutionEvent | None = None) -> dict:
         """Publish a GEP bundle to the EvoMap marketplace.
 
-        Computes canonical asset IDs, assembles the bundle, and sends
-        it via the ``/publish`` envelope endpoint.
+        Computes canonical asset IDs, links Capsule → Gene, assembles
+        the bundle, and sends it via the ``/publish`` envelope endpoint.
 
         Args:
             gene: The Gene asset.
@@ -169,18 +198,21 @@ class Publisher:
             contains the server-assigned IDs (index 0 = Gene,
             1 = Capsule, 2 = EvolutionEvent).
         """
+        # Step 1: Compute Gene asset_id
         gene_dict = gene.to_dict()
-        capsule_dict = capsule.to_dict()
-
         gene_dict["asset_id"] = compute_asset_id(gene_dict)
+
+        # Step 2: Link Capsule to Gene and compute its asset_id
+        capsule.gene = gene_dict["asset_id"]
+        capsule_dict = capsule.to_dict()
         capsule_dict["asset_id"] = compute_asset_id(capsule_dict)
 
         assets = [gene_dict, capsule_dict]
 
+        # Step 3: Link EvolutionEvent to both and compute its asset_id
         if event:
-            event_dict = event.to_dict()
-            event.gene_id = gene_dict["asset_id"]
             event.capsule_id = capsule_dict["asset_id"]
+            event.genes_used = [gene_dict["asset_id"]]
             event_dict = event.to_dict()
             event_dict["asset_id"] = compute_asset_id(event_dict)
             assets.append(event_dict)
